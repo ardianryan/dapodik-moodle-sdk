@@ -32,7 +32,7 @@ jobs:
       # -------------------------------------------------------------
       - name: PHP Lint (Syntax Check) - Moodle Plugin
         run: |
-          find moodle-plugin -name "*.php" -print0 | xargs -0 -n 1 -P 4 php -l
+          find . -maxdepth 3 -name "*.php" -not -path "*/standalone-bridge/*" -print0 | xargs -0 -n 1 -P 4 php -l
 
       - name: PHP Lint (Syntax Check) - Standalone Bridge
         run: |
@@ -43,23 +43,23 @@ jobs:
       # -------------------------------------------------------------
       - name: Validate Moodle Plugin Requirements
         run: |
-          echo "🔍 Checking mandatory Moodle plugin files..."
-          test -f moodle-plugin/version.php || { echo "❌ version.php missing"; exit 1; }
-          test -f moodle-plugin/settings.php || { echo "❌ settings.php missing"; exit 1; }
-          test -f moodle-plugin/lib.php || { echo "❌ lib.php missing"; exit 1; }
-          test -f moodle-plugin/db/access.php || { echo "❌ db/access.php missing"; exit 1; }
-          test -f moodle-plugin/db/tasks.php || { echo "❌ db/tasks.php missing"; exit 1; }
-          test -f moodle-plugin/classes/privacy/provider.php || { echo "❌ classes/privacy/provider.php missing (Approval Blocker)"; exit 1; }
-          test -f moodle-plugin/lang/en/local_dapodik.php || { echo "❌ lang/en/local_dapodik.php missing"; exit 1; }
-          test -f moodle-plugin/lang/id/local_dapodik.php || { echo "❌ lang/id/local_dapodik.php missing"; exit 1; }
+          echo "🔍 Checking mandatory Moodle plugin files at repository root..."
+          test -f version.php || { echo "❌ version.php missing at root"; exit 1; }
+          test -f settings.php || { echo "❌ settings.php missing at root"; exit 1; }
+          test -f lib.php || { echo "❌ lib.php missing at root"; exit 1; }
+          test -f db/access.php || { echo "❌ db/access.php missing"; exit 1; }
+          test -f db/tasks.php || { echo "❌ db/tasks.php missing"; exit 1; }
+          test -f classes/privacy/provider.php || { echo "❌ classes/privacy/provider.php missing (Approval Blocker)"; exit 1; }
+          test -f lang/en/local_dapodik.php || { echo "❌ lang/en/local_dapodik.php missing"; exit 1; }
+          test -f lang/id/local_dapodik.php || { echo "❌ lang/id/local_dapodik.php missing"; exit 1; }
 
           echo "🔍 Checking plugin component name..."
-          grep -q "\$plugin->component = 'local_dapodik';" moodle-plugin/version.php || {
+          grep -q "\$plugin->component = 'local_dapodik';" version.php || {
             echo "❌ \$plugin->component must be 'local_dapodik'"; exit 1;
           }
 
           echo "🔍 Checking MOODLE_INTERNAL guard in all plugin files..."
-          for file in $(find moodle-plugin -name "*.php" -not -name "index.php"); do
+          for file in version.php settings.php lib.php $(find classes db -name "*.php"); do
             grep -q "MOODLE_INTERNAL" "$file" || {
               echo "❌ Missing MOODLE_INTERNAL guard in $file"; exit 1;
             }
