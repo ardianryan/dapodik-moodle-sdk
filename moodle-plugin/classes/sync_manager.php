@@ -12,9 +12,11 @@ defined('MOODLE_INTERNAL') || die();
 require_once($CFG->dirroot . '/user/lib.php');
 require_once($CFG->dirroot . '/cohort/lib.php');
 require_once($CFG->dirroot . '/course/lib.php');
+require_once($CFG->dirroot . '/enrol/locallib.php');
 
 /**
  * Sync Manager orchestrating data synchronization between Dapodik and Moodle.
+ * Supports granular/modular sync and manual teacher mapping.
  */
 class sync_manager {
     protected dapodik_client $client;
@@ -28,9 +30,19 @@ class sync_manager {
     }
 
     /**
-     * Run full synchronization based on plugin settings.
+     * Run modular synchronization based on options.
+     *
+     * @param array $options [
+     *     'students'     => bool,
+     *     'teachers'     => bool,
+     *     'cohorts'      => bool,
+     *     'courses'      => bool,
+     *     'auto_teacher' => bool,
+     * ]
+     * @param callable|null $logger
+     * @return array
      */
-    public function sync_all(?callable $logger = null): array {
+    public function sync_modular(array $options, ?callable $logger = null): array {
         $stats = [
             'students' => 0,
             'teachers' => 0,
@@ -39,35 +51,49 @@ class sync_manager {
         ];
 
         $log = $logger ?? function($msg) { mtrace($msg); };
-
-        $log("Starting Dapodik Kemendikdasmen Synchronization...");
+        $log("Memulai Sinkronisasi Modular Dapodik Kemendikdasmen...");
 
         // 1. Sync Students.
-        if (get_config('local_dapodik', 'sync_students')) {
-            $log("Syncing Students (Peserta Didik)...");
+        if (!empty($options['students'])) {
+            $log("Sinkronisasi Peserta Didik (Siswa)...");
             $stats['students'] = $this->sync_students($log);
         }
 
         // 2. Sync Teachers / GTK.
-        if (get_config('local_dapodik', 'sync_teachers')) {
-            $log("Syncing Teachers (GTK)...");
+        if (!empty($options['teachers'])) {
+            $log("Sinkronisasi Guru & Tendik (GTK)...");
             $stats['teachers'] = $this->sync_teachers($log);
         }
 
         // 3. Sync Cohorts (Rombel).
-        if (get_config('local_dapodik', 'sync_cohorts')) {
-            $log("Syncing Cohorts (Rombongan Belajar)...");
+        if (!empty($options['cohorts'])) {
+            $log("Sinkronisasi Rombongan Belajar (Cohorts)...");
             $stats['cohorts'] = $this->sync_cohorts($log);
         }
 
         // 4. Sync Courses & Enrolments.
-        if (get_config('local_dapodik', 'sync_courses')) {
-            $log("Syncing Courses & Enrolments from Pembelajaran...");
-            $stats['courses'] = $this->sync_courses($log);
+        if (!empty($options['courses'])) {
+            $autoTeacher = !empty($options['auto_teacher']);
+            $log("Sinkronisasi Kursus/Mapel (" . ($autoTeacher ? "Auto-assign guru aktif" : "Assign guru manual nanti") . ")...");
+            $stats['courses'] = $this->sync_courses($autoTeacher, $log);
         }
 
-        $log("Synchronization finished successfully! Summary: " . json_encode($stats));
+        $log("Sinkronisasi modular selesai! Ringkasan: " . json_encode($stats));
         return $stats;
+    }
+
+    /**
+     * Run full synchronization based on plugin settings.
+     */
+    public function sync_all(?callable $logger = null): array {
+        $options = [
+            'students'     => (bool) get_config('local_dapodik', 'sync_students'),
+            'teachers'     => (bool) get_config('local_dapodik', 'sync_teachers'),
+            'cohorts'      => (bool) get_config('local_dapodik', 'sync_cohorts'),
+            'courses'      => (bool) get_config('local_dapodik', 'sync_courses'),
+            'auto_teacher' => false, // Default false: admin assigns teachers manually.
+        ];
+        return $this->sync_modular($options, $logger);
     }
 
     /**
@@ -124,7 +150,6 @@ class sync_manager {
                     user_create_user($user, false, false);
                     $count++;
                 } else {
-                    // Update existing record if needed.
                     $existing->firstname = $firstname;
                     $existing->lastname = $lastname;
                     $existing->idnumber = $nisn;
@@ -139,7 +164,7 @@ class sync_manager {
             $page++;
         }
 
-        if ($log) $log("Total students processed: $count");
+        if ($log) $log("Total siswa diproses: $count");
         return $count;
     }
 
@@ -207,7 +232,7 @@ class sync_manager {
             $page++;
         }
 
-        if ($log) $log("Total teachers processed: $count");
+        if ($log) $log("Total guru/tendik diproses: $count");
         return $count;
     }
 
@@ -256,14 +281,19 @@ class sync_manager {
             }
         }
 
-        if ($log) $log("Total cohorts synchronized: $count");
+        if ($log) $log("Total cohort rombel disinkronkan: $count");
         return $count;
     }
 
     /**
-     * Synchronize courses from Dapodik pembelajaran and enrol students & teachers.
+     * Synchronize courses from Dapodik pembelajaran.
+     * Allows separating course creation from teacher enrolment.
+     *
+     * @param bool $autoAssignTeacher Whether to automatically enrol the teacher defined in Dapodik.
+     * @param callable|null $log
+     * @return int
      */
-    public function sync_courses(?callable $log = null): int {
+    public function sync_courses(bool $autoAssignTeacher = false, ?callable $log = null): int {
         global $DB;
         $count = 0;
         $rombels = $this->client->get_rombongan_belajar();
@@ -281,6 +311,7 @@ class sync_manager {
 
         foreach ($rombels as $rombel) {
             $rombelname = trim($rombel['nama'] ?? '');
+            $rombelid = $rombel['rombongan_belajar_id'] ?? '';
             if (empty($rombel['pembelajaran']) || !is_array($rombel['pembelajaran'])) {
                 continue;
             }
@@ -288,6 +319,9 @@ class sync_manager {
             foreach ($rombel['pembelajaran'] as $pemb) {
                 $mapel = trim($pemb['nama_mata_pelajaran'] ?? '');
                 $pembid = $pemb['pembelajaran_id'] ?? '';
+                $namaGuru = trim($pemb['nama_guru'] ?? $pemb['nama_ptk'] ?? '');
+                $ptkId = trim($pemb['ptk_id'] ?? '');
+
                 if (empty($mapel) || empty($pembid)) continue;
 
                 $shortname = substr($mapel . ' - ' . $rombelname, 0, 100);
@@ -300,19 +334,155 @@ class sync_manager {
                     $course->fullname = $mapel . ' (' . $rombelname . ')';
                     $course->shortname = $shortname;
                     $course->idnumber = $idnumber;
-                    $course->summary = 'Mata pelajaran Dapodik: ' . $mapel . ' untuk kelas ' . $rombelname;
+                    $course->summary = 'Mata pelajaran Dapodik: ' . $mapel . ' | Kelas: ' . $rombelname . ($namaGuru ? ' | Guru Dapodik: ' . $namaGuru : '');
                     $course->format = 'topics';
                     $course->numsections = 4;
                     $course->startdate = time();
                     $course->visible = 1;
 
-                    create_course($course);
+                    $newcourse = create_course($course);
+                    $courseid = $newcourse->id;
                     $count++;
+                } else {
+                    $courseid = $existing->id;
+                }
+
+                // Auto-assign cohort enrolment for students of this rombel.
+                $cohort = $DB->get_record('cohort', ['idnumber' => 'ROMBEL_' . $rombelid]);
+                if ($cohort) {
+                    $this->enrol_cohort_to_course($courseid, $cohort->id);
+                }
+
+                // If auto-assign teacher is requested and teacher is present in Dapodik.
+                if ($autoAssignTeacher && !empty($ptkId)) {
+                    $teacherUser = $DB->get_record('user', ['idnumber' => $ptkId, 'deleted' => 0]);
+                    if ($teacherUser) {
+                        $this->assign_teacher_to_course($courseid, $teacherUser->id);
+                    }
                 }
             }
         }
 
-        if ($log) $log("Total courses synchronized: $count");
+        if ($log) $log("Total kursus disinkronkan: $count");
         return $count;
+    }
+
+    /**
+     * Enrol a cohort to a course using enrol_cohort plugin.
+     */
+    protected function enrol_cohort_to_course(int $courseid, int $cohortid): void {
+        global $DB;
+        $instance = $DB->get_record('enrol', ['courseid' => $courseid, 'enrol' => 'cohort', 'customint1' => $cohortid]);
+        if (!$instance) {
+            $enrolplugin = enrol_get_plugin('cohort');
+            if ($enrolplugin) {
+                $course = $DB->get_record('course', ['id' => $courseid]);
+                $studentrole = $DB->get_record('role', ['shortname' => 'student']);
+                if ($studentrole && $course) {
+                    $enrolplugin->add_instance($course, [
+                        'customint1' => $cohortid,
+                        'roleid'     => $studentrole->id,
+                        'status'     => ENROL_INSTANCE_ENABLED,
+                    ]);
+                }
+            }
+        }
+    }
+
+    /**
+     * Assign a user as teacher to a course.
+     */
+    public function assign_teacher_to_course(int $courseid, int $userid, string $roleshortname = 'editingteacher'): bool {
+        global $DB;
+        $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
+        $role = $DB->get_record('role', ['shortname' => $roleshortname]);
+        if (!$role) {
+            $role = $DB->get_record('role', ['shortname' => 'teacher']);
+        }
+        if (!$role) return false;
+
+        $enrolmanual = enrol_get_plugin('manual');
+        if (!$enrolmanual) return false;
+
+        $instance = $DB->get_record('enrol', ['courseid' => $course->id, 'enrol' => 'manual'], '*', IGNORE_MULTIPLE);
+        if (!$instance) {
+            $instanceid = $enrolmanual->add_default_instance($course);
+            $instance = $DB->get_record('enrol', ['id' => $instanceid]);
+        }
+
+        $enrolmanual->enrol_user($instance, $userid, $role->id, time());
+        return true;
+    }
+
+    /**
+     * Unassign a user from a course.
+     */
+    public function unassign_teacher_from_course(int $courseid, int $userid): bool {
+        global $DB;
+        $enrolmanual = enrol_get_plugin('manual');
+        if (!$enrolmanual) return false;
+
+        $instance = $DB->get_record('enrol', ['courseid' => $courseid, 'enrol' => 'manual'], '*', IGNORE_MULTIPLE);
+        if ($instance) {
+            $enrolmanual->unenrol_user($instance, $userid);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Fetch list of all Dapodik courses with currently enrolled teachers.
+     */
+    public function get_dapodik_courses_list(): array {
+        global $DB;
+        $sql = "SELECT c.id, c.fullname, c.shortname, c.idnumber, c.summary
+                  FROM {course} c
+                 WHERE c.idnumber LIKE 'PEMB_%'
+              ORDER BY c.fullname ASC";
+        $courses = $DB->get_records_sql($sql);
+
+        $result = [];
+        foreach ($courses as $c) {
+            $context = \context_course::instance($c->id);
+            $teacherroles = $DB->get_records_list('role', 'shortname', ['editingteacher', 'teacher']);
+            $roleids = array_keys($teacherroles);
+
+            $assignedTeachers = [];
+            if (!empty($roleids)) {
+                list($insql, $inparams) = $DB->get_in_or_equal($roleids);
+                $sqlTeachers = "SELECT u.id, u.username, u.firstname, u.lastname, u.email
+                                  FROM {role_assignments} ra
+                                  JOIN {user} u ON u.id = ra.userid
+                                 WHERE ra.contextid = ? AND ra.roleid $insql AND u.deleted = 0";
+                $assignedTeachers = $DB->get_records_sql($sqlTeachers, array_merge([$context->id], $inparams));
+            }
+
+            // Extract Guru Dapodik from summary if available.
+            $guruDapodik = '-';
+            if (preg_match('/Guru Dapodik:\s*(.+)$/i', $c->summary, $m)) {
+                $guruDapodik = trim($m[1]);
+            }
+
+            $result[] = [
+                'course'            => $c,
+                'guru_dapodik'      => $guruDapodik,
+                'assigned_teachers' => array_values($assignedTeachers),
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Fetch list of all potential teachers available in Moodle.
+     */
+    public function get_available_teachers(): array {
+        global $DB;
+        // Search in users with department 'Guru / GTK' or any active confirmed users.
+        $sql = "SELECT u.id, u.username, u.firstname, u.lastname, u.email, u.department
+                  FROM {user} u
+                 WHERE u.deleted = 0 AND u.suspended = 0 AND u.id > 2
+              ORDER BY u.firstname ASC, u.lastname ASC";
+        return array_values($DB->get_records_sql($sql));
     }
 }

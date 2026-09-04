@@ -92,9 +92,15 @@ Repositori ini menyediakan **2 Pilihan Mode** sesuai kebutuhan infrastruktur sek
    ```
 2. Buka browser dan login ke Moodle sebagai Administrator.
 3. Kunjungi halaman **Site Administration ➔ Notifications** untuk menyelesaikan instalasi otomatis plugin.
-4. Buka **Site Administration ➔ Plugins ➔ Local plugins ➔ Integrator Dapodik Kemendikdasmen**.
-5. Masukkan **IP Host Dapodik**, **NPSN**, dan **Token WebService**.
-6. Klik menu **Jalankan Sinkronisasi Sekarang**, atau biarkan berjalan otomatis setiap malam via **Moodle Scheduled Task (Cron)**!
+4. Buka **Site Administration ➔ Plugins ➔ Local plugins ➔ Integrator Dapodik Kemendikdasmen** untuk mengisi Token & IP Dapodik.
+5. Buka menu **Pusat Kendali Dapodik** di Moodle:
+   * **Tab 1: ⚡ Penarikan Bertahap (Modular Sync)**:
+     - Berikan centang hanya pada data yang ingin ditarik (Siswa saja, Guru saja, Rombel saja, atau Mapel saja).
+     - Centang atau kosongkan opsi *"Otomatis Daftarkan Guru Pengampu dari Dapodik"* jika ingin pembagian tugas dilakukan terpisah.
+   * **Tab 2: 👨‍🏫 Pemetaan Pengajar (Teacher Assignment Dashboard)**:
+     - Menampilkan tabel seluruh mata pelajaran per kelas.
+     - Menampilkan nama guru dari Dapodik.
+     - Sedia dropdown untuk memilih dan mendaftarkan guru manapun di Moodle (baik guru PNS, P3K, maupun guru honorer lokal) ke kelas bersangkutan dengan 1 klik!
 
 ---
 
@@ -111,18 +117,23 @@ Repositori ini menyediakan **2 Pilihan Mode** sesuai kebutuhan infrastruktur sek
    cp config/config.example.php config/config.php
    ```
 3. Edit `config/config.php` dengan URL Moodle, Token WebService Moodle, NPSN, dan Token Dapodik.
-4. Jalankan perintah sinkronisasi melalui terminal:
+4. Jalankan perintah sinkronisasi granular melalui terminal:
    ```bash
    # Uji koneksi ke Dapodik dan Moodle
    ./bin/dapodik-moodle test:connection
 
-   # Jalankan sinkronisasi seluruh data
-   ./bin/dapodik-moodle sync:all
-
-   # Atau jalankan sinkronisasi spesifik
-   ./bin/dapodik-moodle sync:students
-   ./bin/dapodik-moodle sync:teachers
+   # 1. Tarik Rombel & Mapel saja (tanpa paksa guru Dapodik)
    ./bin/dapodik-moodle sync:cohorts
+   ./bin/dapodik-moodle sync:courses
+
+   # 2. Tarik Siswa saja
+   ./bin/dapodik-moodle sync:students
+
+   # 3. Tarik Guru saja
+   ./bin/dapodik-moodle sync:teachers
+
+   # 4. Assign guru tertentu ke suatu course (Course ID & User ID)
+   ./bin/dapodik-moodle assign:teacher 45 12
    ```
 
 ---

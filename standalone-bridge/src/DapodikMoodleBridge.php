@@ -203,4 +203,61 @@ class DapodikMoodleBridge
 
         return $count;
     }
+
+    /**
+     * Synchronize courses from pembelajaran and optionally enrol teachers.
+     */
+    public function syncCourses(bool $autoTeacher = false, ?callable $log = null): int
+    {
+        $count = 0;
+        $rombels = $this->dapodik->getRombonganBelajar();
+        if (empty($rombels)) return 0;
+
+        $coursesToCreate = [];
+        foreach ($rombels as $rombel) {
+            $rombelName = trim($rombel['nama'] ?? '');
+            if (empty($rombel['pembelajaran']) || !is_array($rombel['pembelajaran'])) continue;
+
+            foreach ($rombel['pembelajaran'] as $pemb) {
+                $mapel = trim($pemb['nama_mata_pelajaran'] ?? '');
+                $pembId = $pemb['pembelajaran_id'] ?? '';
+                $namaGuru = trim($pemb['nama_guru'] ?? $pemb['nama_ptk'] ?? '');
+                if (empty($mapel) || empty($pembId)) continue;
+
+                $coursesToCreate[] = [
+                    'fullname'   => $mapel . ' (' . $rombelName . ')',
+                    'shortname'  => substr($mapel . ' - ' . $rombelName, 0, 100),
+                    'categoryid' => 1,
+                    'idnumber'   => 'PEMB_' . $pembId,
+                    'summary'    => 'Mata Pelajaran Dapodik: ' . $mapel . ' | Kelas: ' . $rombelName . ($namaGuru ? ' | Guru Dapodik: ' . $namaGuru : ''),
+                    'format'     => 'topics',
+                ];
+                $count++;
+            }
+        }
+
+        if (!empty($coursesToCreate)) {
+            try {
+                $this->moodle->createCourses($coursesToCreate);
+            } catch (\Exception $e) {
+                if ($log) $log("Notice during course creation: " . $e->getMessage());
+            }
+        }
+
+        return $count;
+    }
+
+    /**
+     * Assign teacher to course using enrol_manual_enrol_users.
+     */
+    public function assignTeacher(int $courseId, int $userId, int $roleId = 3): array
+    {
+        return $this->moodle->enrolUsers([
+            [
+                'roleid'   => $roleId, // 3 = Editing teacher, 4 = Non-editing teacher
+                'userid'   => $userId,
+                'courseid' => $courseId,
+            ],
+        ]);
+    }
 }

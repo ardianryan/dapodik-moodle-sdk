@@ -85,11 +85,35 @@ switch ($command) {
         echo "✅ Selesai! Total cohort disinkronkan: $total\n";
         break;
 
+    case 'sync:courses':
+        $autoTeacher = in_array('--with-teachers', $argv);
+        echo "🚀 Memulai sinkronisasi Kursus/Mapel (" . ($autoTeacher ? "Auto-assign guru aktif" : "Tanpa auto-assign guru") . ")...\n";
+        $total = $bridge->syncCourses($autoTeacher, function($msg) { echo "   $msg\n"; });
+        echo "✅ Selesai! Total kursus disinkronkan: $total\n";
+        break;
+
+    case 'assign:teacher':
+        $courseId = (int)($argv[2] ?? 0);
+        $userId = (int)($argv[3] ?? 0);
+        if (!$courseId || !$userId) {
+            echo "❌ Format salah. Penggunaan: ./bin/dapodik-moodle assign:teacher <course_id> <user_id>\n";
+            exit(1);
+        }
+        echo "👨‍🏫 Mendaftarkan Guru (User ID: $userId) ke Kursus (Course ID: $courseId)...\n";
+        try {
+            $bridge->assignTeacher($courseId, $userId);
+            echo "✅ Guru berhasil didaftarkan sebagai Editing Teacher!\n";
+        } catch (\Exception $e) {
+            echo "❌ Gagal assign guru: " . $e->getMessage() . "\n";
+        }
+        break;
+
     case 'sync':
     case 'sync:all':
     default:
-        echo "🚀 Menjalankan sinkronisasi penuh (Siswa, GTK, Cohort)...\n";
+        echo "🚀 Menjalankan sinkronisasi penuh (Siswa, GTK, Cohort, Kursus)...\n";
         $bridge->syncAll(function($msg) { echo "   $msg\n"; });
-        echo "🎉 Sinkronisasi seluruh data Dapodik ke Moodle selesai!\n";
+        $bridge->syncCourses(false, function($msg) { echo "   $msg\n"; });
+        echo "🎉 Sinkronisasi data Dapodik ke Moodle selesai!\n";
         break;
 }
