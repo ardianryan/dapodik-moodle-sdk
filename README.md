@@ -5,6 +5,7 @@
 <h1 align="center">dapodik-moodle-sdk</h1>
 
 <p align="center">
+  <a href="https://github.com/ardianryan/dapodik-moodle-sdk/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/ardianryan/dapodik-moodle-sdk/ci.yml?branch=main&style=flat-square&label=Moodle%20CI" alt="CI Status" /></a>
   <a href="https://moodle.org"><img src="https://img.shields.io/badge/Moodle-4.0%20%7C%204.5%20%7C%205.0-F98012.svg?style=flat-square&logo=moodle&logoColor=white" alt="Moodle Version" /></a>
   <a href="https://php.net"><img src="https://img.shields.io/badge/PHP-%3E%3D8.1-777bb4.svg?style=flat-square&logo=php" alt="PHP Version" /></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT--NC-blue.svg?style=flat-square" alt="License: MIT-NC" /></a>

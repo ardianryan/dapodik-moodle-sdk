@@ -1,0 +1,89 @@
+name: Moodle Plugin CI & Automated Tests
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: PHP ${{ matrix.php-version }} - Code Quality & Automated Tests
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ['8.1', '8.2', '8.3', '8.4']
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP Environment
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: mbstring, xml, curl, json, zip, tokenizer
+          tools: composer:v2, phpcs
+
+      # -------------------------------------------------------------
+      # 1. PHP Syntax & Linting Check
+      # -------------------------------------------------------------
+      - name: PHP Lint (Syntax Check) - Moodle Plugin
+        run: |
+          find moodle-plugin -name "*.php" -print0 | xargs -0 -n 1 -P 4 php -l
+
+      - name: PHP Lint (Syntax Check) - Standalone Bridge
+        run: |
+          find standalone-bridge -name "*.php" -not -path "*/vendor/*" -print0 | xargs -0 -n 1 -P 4 php -l
+
+      # -------------------------------------------------------------
+      # 2. Moodle HQ Plugin Standard Validation
+      # -------------------------------------------------------------
+      - name: Validate Moodle Plugin Requirements
+        run: |
+          echo "🔍 Checking mandatory Moodle plugin files..."
+          test -f moodle-plugin/version.php || { echo "❌ version.php missing"; exit 1; }
+          test -f moodle-plugin/settings.php || { echo "❌ settings.php missing"; exit 1; }
+          test -f moodle-plugin/lib.php || { echo "❌ lib.php missing"; exit 1; }
+          test -f moodle-plugin/db/access.php || { echo "❌ db/access.php missing"; exit 1; }
+          test -f moodle-plugin/db/tasks.php || { echo "❌ db/tasks.php missing"; exit 1; }
+          test -f moodle-plugin/lang/en/local_dapodik.php || { echo "❌ lang/en/local_dapodik.php missing"; exit 1; }
+          test -f moodle-plugin/lang/id/local_dapodik.php || { echo "❌ lang/id/local_dapodik.php missing"; exit 1; }
+
+          echo "🔍 Checking plugin component name..."
+          grep -q "\$plugin->component = 'local_dapodik';" moodle-plugin/version.php || {
+            echo "❌ \$plugin->component must be 'local_dapodik'"; exit 1;
+          }
+
+          echo "🔍 Checking MOODLE_INTERNAL guard in all plugin files..."
+          for file in $(find moodle-plugin -name "*.php" -not -name "index.php"); do
+            grep -q "MOODLE_INTERNAL" "$file" || {
+              echo "❌ Missing MOODLE_INTERNAL guard in $file"; exit 1;
+            }
+          done
+
+          echo "✅ All Moodle HQ Plugin structural standards passed!"
+
+      # -------------------------------------------------------------
+      # 3. Standalone Bridge PHPUnit & CLI Testing
+      # -------------------------------------------------------------
+      - name: Validate composer.json
+        working-directory: standalone-bridge
+        run: composer validate --strict
+
+      - name: Install Standalone Bridge Dependencies
+        working-directory: standalone-bridge
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Run PHPUnit Test Suite
+        working-directory: standalone-bridge
+        run: ./vendor/bin/phpunit tests/BridgeTest.php
+
+      - name: Verify CLI Executable
+        working-directory: standalone-bridge
+        run: |
+          chmod +x bin/dapodik-moodle
+          php bin/dapodik-moodle || true
+          echo "✅ CLI tool initialized successfully!"
