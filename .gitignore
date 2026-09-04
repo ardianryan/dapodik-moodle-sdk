@@ -1,0 +1,14 @@
+# Vendor & Dependencies
+vendor/
+composer.lock
+.phpunit.result.cache
+
+# Configuration & Secrets
+config.php
+*.token
+.env
+.env.local
+
+# OS files
+.DS_Store
+Thumbs.db

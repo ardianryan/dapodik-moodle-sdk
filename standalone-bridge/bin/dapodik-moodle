@@ -1,0 +1,95 @@
+#!/usr/bin/env php
+<?php
+
+if (file_exists(__DIR__ . '/../vendor/autoload.php')) {
+    require_once __DIR__ . '/../vendor/autoload.php';
+} elseif (file_exists(__DIR__ . '/../../vendor/autoload.php')) {
+    require_once __DIR__ . '/../../vendor/autoload.php';
+}
+
+use Smansage\DapodikMoodle\DapodikHttpClient;
+use Smansage\DapodikMoodle\MoodleRestClient;
+use Smansage\DapodikMoodle\DapodikMoodleBridge;
+
+echo "===============================================================\n";
+echo "🎓 Dapodik-Moodle SDK & Bridge CLI (v1.0.0)\n";
+echo "Dikembangkan oleh Ryan Ardian & SMA Negeri 1 Gedeg (@smansagewithai)\n";
+echo "===============================================================\n\n";
+
+$configFile = getenv('DAPODIK_MOODLE_CONFIG') ?: __DIR__ . '/../config/config.php';
+if (!file_exists($configFile)) {
+    echo "⚠️  File konfigurasi belum ditemukan: $configFile\n";
+    echo "💡 Silakan salin config.example.php ke config.php terlebih dahulu:\n";
+    echo "   cp config/config.example.php config/config.php\n\n";
+    exit(1);
+}
+
+$config = require $configFile;
+
+$dapodik = new DapodikHttpClient(
+    npsn: $config['dapodik']['npsn'],
+    token: $config['dapodik']['token'],
+    host: $config['dapodik']['host'] ?? '127.0.0.1',
+    port: (int)($config['dapodik']['port'] ?? 5774)
+);
+
+$moodle = new MoodleRestClient(
+    moodleUrl: $config['moodle']['url'],
+    wsToken: $config['moodle']['token']
+);
+
+$bridge = new DapodikMoodleBridge(
+    dapodik: $dapodik,
+    moodle: $moodle,
+    defaultPassword: $config['sync']['default_password'] ?? 'Dapodik@2026!',
+    emailDomain: $config['sync']['email_domain'] ?? 'sekolah.sch.id'
+);
+
+$command = $argv[1] ?? 'sync:all';
+
+switch ($command) {
+    case 'test':
+    case 'test:connection':
+        echo "🔍 Menguji koneksi ke WebService Dapodik...\n";
+        try {
+            $sekolah = $dapodik->getSekolah();
+            echo "   ✅ Dapodik OK! Terhubung ke: " . ($sekolah[0]['nama'] ?? 'Sekolah') . "\n";
+        } catch (\Exception $e) {
+            echo "   ❌ Gagal koneksi ke Dapodik: " . $e->getMessage() . "\n";
+        }
+
+        echo "\n🔍 Menguji koneksi ke Moodle REST API...\n";
+        try {
+            $test = $moodle->call('core_webservice_get_site_info');
+            echo "   ✅ Moodle OK! Situs: " . ($test['sitename'] ?? 'Moodle') . " (Versi: " . ($test['release'] ?? '') . ")\n";
+        } catch (\Exception $e) {
+            echo "   ❌ Gagal koneksi ke Moodle: " . $e->getMessage() . "\n";
+        }
+        break;
+
+    case 'sync:students':
+        echo "🚀 Memulai sinkronisasi Peserta Didik (Siswa)...\n";
+        $total = $bridge->syncStudents(function($msg) { echo "   $msg\n"; });
+        echo "✅ Selesai! Total siswa disinkronkan: $total\n";
+        break;
+
+    case 'sync:teachers':
+        echo "🚀 Memulai sinkronisasi Guru & Tendik (GTK)...\n";
+        $total = $bridge->syncTeachers(function($msg) { echo "   $msg\n"; });
+        echo "✅ Selesai! Total guru disinkronkan: $total\n";
+        break;
+
+    case 'sync:cohorts':
+        echo "🚀 Memulai sinkronisasi Rombongan Belajar (Cohorts)...\n";
+        $total = $bridge->syncCohorts(function($msg) { echo "   $msg\n"; });
+        echo "✅ Selesai! Total cohort disinkronkan: $total\n";
+        break;
+
+    case 'sync':
+    case 'sync:all':
+    default:
+        echo "🚀 Menjalankan sinkronisasi penuh (Siswa, GTK, Cohort)...\n";
+        $bridge->syncAll(function($msg) { echo "   $msg\n"; });
+        echo "🎉 Sinkronisasi seluruh data Dapodik ke Moodle selesai!\n";
+        break;
+}
