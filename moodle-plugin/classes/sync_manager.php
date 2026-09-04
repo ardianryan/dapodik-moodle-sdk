@@ -51,34 +51,34 @@ class sync_manager {
         ];
 
         $log = $logger ?? function($msg) { mtrace($msg); };
-        $log("Memulai Sinkronisasi Modular Dapodik Kemendikdasmen...");
+        $log("Starting Dapodik Kemendikdasmen modular synchronization...");
 
         // 1. Sync Students.
         if (!empty($options['students'])) {
-            $log("Sinkronisasi Peserta Didik (Siswa)...");
+            $log("Syncing students (Peserta Didik)...");
             $stats['students'] = $this->sync_students($log);
         }
 
         // 2. Sync Teachers / GTK.
         if (!empty($options['teachers'])) {
-            $log("Sinkronisasi Guru & Tendik (GTK)...");
+            $log("Syncing teachers and staff (GTK)...");
             $stats['teachers'] = $this->sync_teachers($log);
         }
 
         // 3. Sync Cohorts (Rombel).
         if (!empty($options['cohorts'])) {
-            $log("Sinkronisasi Rombongan Belajar (Cohorts)...");
+            $log("Syncing study groups (Cohorts)...");
             $stats['cohorts'] = $this->sync_cohorts($log);
         }
 
         // 4. Sync Courses & Enrolments.
         if (!empty($options['courses'])) {
             $autoTeacher = !empty($options['auto_teacher']);
-            $log("Sinkronisasi Kursus/Mapel (" . ($autoTeacher ? "Auto-assign guru aktif" : "Assign guru manual nanti") . ")...");
+            $log("Syncing courses and subjects (" . ($autoTeacher ? "Auto-assigning teachers enabled" : "Manual teacher assignment mode") . ")...");
             $stats['courses'] = $this->sync_courses($autoTeacher, $log);
         }
 
-        $log("Sinkronisasi modular selesai! Ringkasan: " . json_encode($stats));
+        $log("Modular synchronization finished. Summary: " . json_encode($stats));
         return $stats;
     }
 

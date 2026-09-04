@@ -49,6 +49,7 @@ jobs:
           test -f moodle-plugin/lib.php || { echo "❌ lib.php missing"; exit 1; }
           test -f moodle-plugin/db/access.php || { echo "❌ db/access.php missing"; exit 1; }
           test -f moodle-plugin/db/tasks.php || { echo "❌ db/tasks.php missing"; exit 1; }
+          test -f moodle-plugin/classes/privacy/provider.php || { echo "❌ classes/privacy/provider.php missing (Approval Blocker)"; exit 1; }
           test -f moodle-plugin/lang/en/local_dapodik.php || { echo "❌ lang/en/local_dapodik.php missing"; exit 1; }
           test -f moodle-plugin/lang/id/local_dapodik.php || { echo "❌ lang/id/local_dapodik.php missing"; exit 1; }
 
