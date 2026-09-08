@@ -121,4 +121,8 @@ class dapodik_client {
         }
         return $this->request('getRombonganBelajar', $p);
     }
+
+    public function get_prasarana(int $page = 1, int $limit = 100): array {
+        return $this->request('getPrasarana', ['page' => $page, 'limit' => $limit]);
+    }
 }

@@ -35,4 +35,14 @@ class BridgeTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $client->request('../../etc/passwd');
     }
+
+    public function testGetPrasaranaMethodExists(): void
+    {
+        $client = new DapodikHttpClient(
+            npsn: "20300001",
+            token: "valid-token"
+        );
+
+        $this->assertTrue(method_exists($client, 'getPrasarana'));
+    }
 }

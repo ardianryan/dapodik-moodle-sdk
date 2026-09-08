@@ -100,4 +100,9 @@ class DapodikHttpClient
         }
         return $this->request('getRombonganBelajar', $p);
     }
+
+    public function getPrasarana(int $page = 1, int $limit = 100): array
+    {
+        return $this->request('getPrasarana', ['page' => $page, 'limit' => $limit]);
+    }
 }
