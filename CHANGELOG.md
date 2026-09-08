@@ -6,6 +6,17 @@ Format changelog ini mengacu pada [Keep a Changelog](https://keepachangelog.com/
 
 ---
 
+## [1.1.0] - 2026-09-08
+
+### Ditambahkan
+- **Dukungan Endpoint Resmi `/getPrasarana`**:
+  - Penambahan method `get_prasarana(page, limit)` pada Moodle client (`classes/dapodik_client.php`).
+  - Penambahan method `getPrasarana(page, limit)` pada standalone HTTP client (`standalone-bridge/src/DapodikHttpClient.php`).
+  - Struktur hierarki sarpras (Tanah ➔ Bangunan ➔ Ruang) dinormalisasi untuk pemetaan ruang ujian/lab di CBT.
+  - Pengujian unit otomatis di `standalone-bridge/tests/BridgeTest.php` lulus 100%.
+- **Pembaruan Versi Moodle Plugin**:
+  - Build number dinaikkan ke `2026090800` (rilis `v1.1.0`) untuk memenuhi standar verifikasi rilis Moodle Marketplace.
+
 ## [1.0.0] - 2026-09-04
 
 ### Ditambahkan

@@ -45,6 +45,7 @@ flowchart TD
         D1 --> E1["/getPesertaDidik (Siswa)"]
         D1 --> E2["/getGtk (Guru / Tendik)"]
         D1 --> E3["/getRombonganBelajar (Rombel & Mapel)"]
+        D1 --> E4["/getPrasarana (Tanah, Bangunan & Ruang)"]
     end
 
     subgraph Integrator [" dapodik-moodle-sdk Engine "]
@@ -77,6 +78,7 @@ flowchart TD
 | **GTK (Guru Pengajar)** | Akun Pengguna (`mdl_user`) | **Username**: NIP atau NIK.<br />**Role**: Otomatis diberi peran *Editing Teacher* pada mapel yang diampu. |
 | **Rombongan Belajar** | Moodle Cohort (`mdl_cohort`) | Nama Rombel (misal: *X-A, XI-MIPA 1*) dijadikan Cohort. Siswa rombel otomatis didaftarkan sebagai anggota cohort. |
 | **Pembelajaran (Mapel)** | Moodle Course (`mdl_course`) | Setiap mata pelajaran per rombel otomatis menjadi 1 Course.<br />Guru mapel dan siswa rombel otomatis terdaftar (*auto-enrol*). |
+| **Prasarana (Sarpras)** | Data Ruang & Laboratorium | Data aset tanah, gedung, dan ruang kelas/lab terstruktur hierarkis untuk alokasi ruang ujian CBT. |
 
 ---
 

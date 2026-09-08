@@ -25,7 +25,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'local_dapodik';
-$plugin->version   = 2026090401; // YYYYMMDDXX build number incremented.
+$plugin->version   = 2026090800; // YYYYMMDDXX build number incremented for v1.1.0 (get_prasarana support).
 $plugin->requires  = 2022041900; // Requires Moodle 4.0+.
 $plugin->maturity  = MATURITY_STABLE;
-$plugin->release   = 'v1.0.1';
+$plugin->release   = 'v1.1.0';
