@@ -1,0 +1,136 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template local_dapodik/control_center
+
+    Dashboard template for Dapodik synchronization control center.
+}}
+<ul class="nav nav-tabs mb-4">
+  <li class="nav-item">
+    <a class="nav-link {{#is_sync}}active{{/is_sync}}" href="index.php?tab=sync">{{str_tab_sync}}</a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {{#is_mapping}}active{{/is_mapping}}" href="index.php?tab=mapping">{{str_tab_mapping}}</a>
+  </li>
+</ul>
+
+{{#is_sync}}
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <h5 class="card-title">{{str_modular_sync_heading}}</h5>
+        <p class="text-muted">{{str_modular_sync_desc}}</p>
+        <form method="post" action="index.php?tab=sync&action=dosync">
+            <input type="hidden" name="sesskey" value="{{sesskey}}">
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" name="sync_students" value="1" id="chkStudents" checked>
+                <label class="form-check-label" for="chkStudents">
+                    <strong>{{str_sync_students}}</strong> - {{str_opt_students}}
+                </label>
+            </div>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" name="sync_teachers" value="1" id="chkTeachers" checked>
+                <label class="form-check-label" for="chkTeachers">
+                    <strong>{{str_sync_teachers}}</strong> - {{str_opt_teachers}}
+                </label>
+            </div>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" name="sync_cohorts" value="1" id="chkCohorts" checked>
+                <label class="form-check-label" for="chkCohorts">
+                    <strong>{{str_sync_cohorts}}</strong> - {{str_opt_cohorts}}
+                </label>
+            </div>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" name="sync_courses" value="1" id="chkCourses" checked>
+                <label class="form-check-label" for="chkCourses">
+                    <strong>{{str_sync_courses}}</strong> - {{str_opt_courses}}
+                </label>
+            </div>
+            <div class="form-check mb-4 ms-4 border-start ps-3 py-1 bg-light rounded">
+                <input class="form-check-input" type="checkbox" name="auto_teacher" value="1" id="chkAutoTeacher">
+                <label class="form-check-label" for="chkAutoTeacher">
+                    <em>{{str_opt_auto_teacher}}</em><br />
+                    <small class="text-muted">{{str_opt_auto_teacher_desc}}</small>
+                </label>
+            </div>
+            <button type="submit" class="btn btn-primary btn-lg">{{str_btn_run_sync}}</button>
+        </form>
+    </div>
+</div>
+{{/is_sync}}
+
+{{#is_mapping}}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h5 class="mb-1">{{str_mapping_heading}}</h5>
+        <p class="text-muted mb-0">{{str_mapping_desc}}</p>
+    </div>
+    <span class="badge bg-primary fs-6">{{total_courses_label}}</span>
+</div>
+
+{{#has_courses}}
+<div class="table-responsive">
+    <table class="table table-hover table-bordered align-middle bg-white shadow-sm">
+        <thead class="table-dark">
+            <tr>
+                <th style="width: 30%;">{{str_th_course}}</th>
+                <th style="width: 20%;">{{str_th_guru_dapodik}}</th>
+                <th style="width: 25%;">{{str_th_guru_moodle}}</th>
+                <th style="width: 25%;">{{str_th_action}}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{#courses}}
+            <tr>
+                <td><strong>{{fullname}}</strong><br /><small class="text-muted">{{shortname}}</small></td>
+                <td><span class="badge bg-secondary">{{guru_dapodik}}</span></td>
+                <td>
+                    {{#has_teachers}}
+                        {{#assigned_teachers}}
+                        <div class="d-flex justify-content-between align-items-center mb-1 bg-light p-1 rounded">
+                            <span>{{fullname}} ({{username}})</span>
+                            <a href="{{unassign_url}}" class="btn btn-sm btn-outline-danger py-0 px-1" title="{{str_btn_unassign_title}}">&times;</a>
+                        </div>
+                        {{/assigned_teachers}}
+                    {{/has_teachers}}
+                    {{^has_teachers}}
+                        <span class="badge bg-warning text-dark">{{str_no_teacher_assigned}}</span>
+                    {{/has_teachers}}
+                </td>
+                <td>
+                    <form method="post" action="index.php?tab=mapping&action=assign" class="d-flex gap-1">
+                        <input type="hidden" name="sesskey" value="{{sesskey}}">
+                        <input type="hidden" name="courseid" value="{{id}}">
+                        <select name="teacherid" class="form-select form-select-sm" required>
+                            <option value="">{{str_select_teacher_placeholder}}</option>
+                            {{#available_teachers}}
+                            <option value="{{id}}">{{fullname}} ({{username}})</option>
+                            {{/available_teachers}}
+                        </select>
+                        <button type="submit" class="btn btn-sm btn-success text-nowrap">{{str_btn_assign}}</button>
+                    </form>
+                </td>
+            </tr>
+            {{/courses}}
+        </tbody>
+    </table>
+</div>
+{{/has_courses}}
+
+{{^has_courses}}
+<div class="alert alert-warning">{{str_no_courses_yet}}</div>
+{{/has_courses}}
+{{/is_mapping}}

@@ -56,12 +56,6 @@ if ($hassiteconfig) {
         ''
     ));
 
-    $settings->add(new admin_setting_configpasswordunmask('local_dapodik/default_password',
-        get_string('default_password', 'local_dapodik'),
-        get_string('default_password_desc', 'local_dapodik'),
-        'Dapodik@2026!'
-    ));
-
     $settings->add(new admin_setting_configtext('local_dapodik/email_domain',
         get_string('email_domain', 'local_dapodik'),
         get_string('email_domain_desc', 'local_dapodik'),

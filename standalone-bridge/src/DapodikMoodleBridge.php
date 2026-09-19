@@ -9,18 +9,15 @@ class DapodikMoodleBridge
 {
     protected DapodikHttpClient $dapodik;
     protected MoodleRestClient $moodle;
-    protected string $defaultPassword;
     protected string $emailDomain;
 
     public function __construct(
         DapodikHttpClient $dapodik,
         MoodleRestClient $moodle,
-        string $defaultPassword = 'Dapodik@2026!',
         string $emailDomain = 'sekolah.sch.id'
     ) {
         $this->dapodik = $dapodik;
         $this->moodle = $moodle;
-        $this->defaultPassword = $defaultPassword;
         $this->emailDomain = $emailDomain;
     }
 
@@ -80,7 +77,7 @@ class DapodikMoodleBridge
 
                 $usersToCreate[] = [
                     'username'    => $username,
-                    'password'    => $this->defaultPassword,
+                    'password'    => bin2hex(random_bytes(10)) . '!Aa1',
                     'firstname'   => $parts[0],
                     'lastname'    => $parts[1] ?? '.',
                     'email'       => $email,
@@ -88,6 +85,9 @@ class DapodikMoodleBridge
                     'institution' => $pd['sekolah_id'] ?? '',
                     'department'  => 'Peserta Didik',
                     'lang'        => 'id',
+                    'preferences' => [
+                        ['type' => 'auth_forcepasswordchange', 'value' => '1'],
+                    ],
                 ];
             }
 
@@ -139,13 +139,16 @@ class DapodikMoodleBridge
 
                 $usersToCreate[] = [
                     'username'    => $username,
-                    'password'    => $this->defaultPassword,
+                    'password'    => bin2hex(random_bytes(10)) . '!Aa1',
                     'firstname'   => $parts[0],
                     'lastname'    => $parts[1] ?? '.',
                     'email'       => $email,
                     'idnumber'    => $gtk['ptk_id'] ?? $username,
                     'department'  => 'Guru / GTK',
                     'lang'        => 'id',
+                    'preferences' => [
+                        ['type' => 'auth_forcepasswordchange', 'value' => '1'],
+                    ],
                 ];
             }
 

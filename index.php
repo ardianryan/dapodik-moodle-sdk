@@ -39,21 +39,8 @@ $action = optional_param('action', '', PARAM_ALPHA);
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('control_center_title', 'local_dapodik'));
 
-// Navigation tabs.
-echo '<ul class="nav nav-tabs mb-4">
-  <li class="nav-item">
-    <a class="nav-link ' . ($tab === 'sync' ? 'active' : '') . '" href="index.php?tab=sync">⚡ ' . get_string('tab_sync', 'local_dapodik') . '</a>
-  </li>
-  <li class="nav-item">
-    <a class="nav-link ' . ($tab === 'mapping' ? 'active' : '') . '" href="index.php?tab=mapping">👨‍🏫 ' . get_string('tab_mapping', 'local_dapodik') . '</a>
-  </li>
-</ul>';
-
 $manager = new \local_dapodik\sync_manager();
 
-// =============================================================================
-// TAB 1: MODULAR SYNCHRONIZATION
-// =============================================================================
 if ($tab === 'sync') {
     if ($action === 'dosync' && confirm_sesskey()) {
         $options = [
@@ -80,55 +67,31 @@ if ($tab === 'sync') {
 
         echo html_writer::link(new moodle_url('/local/dapodik/index.php?tab=sync'), get_string('btn_back', 'local_dapodik'), ['class' => 'btn btn-secondary mt-3']);
     } else {
-        echo '<div class="card shadow-sm border-0 mb-4">
-            <div class="card-body">
-                <h5 class="card-title">' . get_string('modular_sync_heading', 'local_dapodik') . '</h5>
-                <p class="text-muted">' . get_string('modular_sync_desc', 'local_dapodik') . '</p>
-                <form method="post" action="index.php?tab=sync&action=dosync">
-                    <input type="hidden" name="sesskey" value="' . sesskey() . '">
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" name="sync_students" value="1" id="chkStudents" checked>
-                        <label class="form-check-label" for="chkStudents">
-                            <strong>' . get_string('sync_students', 'local_dapodik') . '</strong> - ' . get_string('opt_students', 'local_dapodik') . '
-                        </label>
-                    </div>
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" name="sync_teachers" value="1" id="chkTeachers" checked>
-                        <label class="form-check-label" for="chkTeachers">
-                            <strong>' . get_string('sync_teachers', 'local_dapodik') . '</strong> - ' . get_string('opt_teachers', 'local_dapodik') . '
-                        </label>
-                    </div>
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" name="sync_cohorts" value="1" id="chkCohorts" checked>
-                        <label class="form-check-label" for="chkCohorts">
-                            <strong>' . get_string('sync_cohorts', 'local_dapodik') . '</strong> - ' . get_string('opt_cohorts', 'local_dapodik') . '
-                        </label>
-                    </div>
-                    <div class="form-check mb-2">
-                        <input class="form-check-input" type="checkbox" name="sync_courses" value="1" id="chkCourses" checked>
-                        <label class="form-check-label" for="chkCourses">
-                            <strong>' . get_string('sync_courses', 'local_dapodik') . '</strong> - ' . get_string('opt_courses', 'local_dapodik') . '
-                        </label>
-                    </div>
-                    <div class="form-check mb-4 ms-4 border-start ps-3 py-1 bg-light rounded">
-                        <input class="form-check-input" type="checkbox" name="auto_teacher" value="1" id="chkAutoTeacher">
-                        <label class="form-check-label" for="chkAutoTeacher">
-                            <em>' . get_string('opt_auto_teacher', 'local_dapodik') . '</em><br />
-                            <small class="text-muted">' . get_string('opt_auto_teacher_desc', 'local_dapodik') . '</small>
-                        </label>
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-lg">🚀 ' . get_string('btn_run_sync', 'local_dapodik') . '</button>
-                </form>
-            </div>
-        </div>';
+        $templatedata = [
+            'is_sync'                  => true,
+            'is_mapping'               => false,
+            'sesskey'                  => sesskey(),
+            'str_tab_sync'             => get_string('tab_sync', 'local_dapodik'),
+            'str_tab_mapping'          => get_string('tab_mapping', 'local_dapodik'),
+            'str_modular_sync_heading' => get_string('modular_sync_heading', 'local_dapodik'),
+            'str_modular_sync_desc'    => get_string('modular_sync_desc', 'local_dapodik'),
+            'str_sync_students'        => get_string('sync_students', 'local_dapodik'),
+            'str_opt_students'         => get_string('opt_students', 'local_dapodik'),
+            'str_sync_teachers'        => get_string('sync_teachers', 'local_dapodik'),
+            'str_opt_teachers'         => get_string('opt_teachers', 'local_dapodik'),
+            'str_sync_cohorts'         => get_string('sync_cohorts', 'local_dapodik'),
+            'str_opt_cohorts'          => get_string('opt_cohorts', 'local_dapodik'),
+            'str_sync_courses'         => get_string('sync_courses', 'local_dapodik'),
+            'str_opt_courses'          => get_string('opt_courses', 'local_dapodik'),
+            'str_opt_auto_teacher'     => get_string('opt_auto_teacher', 'local_dapodik'),
+            'str_opt_auto_teacher_desc'=> get_string('opt_auto_teacher_desc', 'local_dapodik'),
+            'str_btn_run_sync'         => get_string('btn_run_sync', 'local_dapodik'),
+        ];
+        echo $OUTPUT->render_from_template('local_dapodik/control_center', $templatedata);
     }
 }
 
-// =============================================================================
-// TAB 2: TEACHER ASSIGNMENT DASHBOARD
-// =============================================================================
 if ($tab === 'mapping') {
-    // Handle manual assignment action.
     if ($action === 'assign' && confirm_sesskey()) {
         $courseid = required_param('courseid', PARAM_INT);
         $teacherid = required_param('teacherid', PARAM_INT);
@@ -140,7 +103,6 @@ if ($tab === 'mapping') {
         }
     }
 
-    // Handle manual unassignment.
     if ($action === 'unassign' && confirm_sesskey()) {
         $courseid = required_param('courseid', PARAM_INT);
         $teacherid = required_param('teacherid', PARAM_INT);
@@ -150,81 +112,73 @@ if ($tab === 'mapping') {
         }
     }
 
-    $dapodikCourses = $manager->get_dapodik_courses_list();
-    $availableTeachers = $manager->get_available_teachers();
+    $dapodik_courses = $manager->get_dapodik_courses_list();
+    $available_teachers_raw = $manager->get_available_teachers();
 
-    echo '<div class="d-flex justify-content-between align-items-center mb-3">
-        <div>
-            <h5 class="mb-1">' . get_string('mapping_heading', 'local_dapodik') . '</h5>
-            <p class="text-muted mb-0">' . get_string('mapping_desc', 'local_dapodik') . '</p>
-        </div>
-        <span class="badge bg-primary fs-6">' . get_string('badge_courses_count', 'local_dapodik', count($dapodikCourses)) . '</span>
-    </div>';
+    $available_teachers = [];
+    foreach ($available_teachers_raw as $at) {
+        $available_teachers[] = [
+            'id'       => $at->id,
+            'fullname' => s($at->firstname . ' ' . $at->lastname),
+            'username' => s($at->username),
+        ];
+    }
 
-    if (empty($dapodikCourses)) {
-        echo $OUTPUT->notification(get_string('no_courses_yet', 'local_dapodik'), 'warning');
-    } else {
-        echo '<div class="table-responsive">
-            <table class="table table-hover table-bordered align-middle bg-white shadow-sm">
-                <thead class="table-dark">
-                    <tr>
-                        <th style="width: 30%;">' . get_string('th_course', 'local_dapodik') . '</th>
-                        <th style="width: 20%;">' . get_string('th_guru_dapodik', 'local_dapodik') . '</th>
-                        <th style="width: 25%;">' . get_string('th_guru_moodle', 'local_dapodik') . '</th>
-                        <th style="width: 25%;">' . get_string('th_action', 'local_dapodik') . '</th>
-                    </tr>
-                </thead>
-                <tbody>';
+    $formatted_courses = [];
+    foreach ($dapodik_courses as $item) {
+        $course = $item['course'];
+        $assigned_teachers_raw = $item['assigned_teachers'];
 
-        foreach ($dapodikCourses as $item) {
-            $course = $item['course'];
-            $guruDapodik = $item['guru_dapodik'];
-            $assignedTeachers = $item['assigned_teachers'];
-
-            echo '<tr>';
-            echo '<td><strong>' . s($course->fullname) . '</strong><br /><small class="text-muted">' . s($course->shortname) . '</small></td>';
-            echo '<td><span class="badge bg-secondary">' . s($guruDapodik) . '</span></td>';
-
-            // Current assigned teachers.
-            echo '<td>';
-            if (empty($assignedTeachers)) {
-                echo '<span class="badge bg-warning text-dark">' . get_string('no_teacher_assigned', 'local_dapodik') . '</span>';
-            } else {
-                foreach ($assignedTeachers as $t) {
-                    $unassignUrl = new moodle_url('/local/dapodik/index.php', [
-                        'tab'       => 'mapping',
-                        'action'    => 'unassign',
-                        'courseid'  => $course->id,
-                        'teacherid' => $t->id,
-                        'sesskey'   => sesskey(),
-                    ]);
-                    echo '<div class="d-flex justify-content-between align-items-center mb-1 bg-light p-1 rounded">
-                        <span>👤 ' . s($t->firstname . ' ' . $t->lastname) . ' (' . s($t->username) . ')</span>
-                        <a href="' . $unassignUrl . '" class="btn btn-sm btn-outline-danger py-0 px-1" title="' . get_string('btn_unassign_title', 'local_dapodik') . '">&times;</a>
-                    </div>';
-                }
-            }
-            echo '</td>';
-
-            // Assign new teacher dropdown form.
-            echo '<td>
-                <form method="post" action="index.php?tab=mapping&action=assign" class="d-flex gap-1">
-                    <input type="hidden" name="sesskey" value="' . sesskey() . '">
-                    <input type="hidden" name="courseid" value="' . $course->id . '">
-                    <select name="teacherid" class="form-select form-select-sm" required>
-                        <option value="">' . get_string('select_teacher_placeholder', 'local_dapodik') . '</option>';
-            foreach ($availableTeachers as $at) {
-                echo '<option value="' . $at->id . '">' . s($at->firstname . ' ' . $at->lastname) . ' (' . s($at->username) . ')</option>';
-            }
-            echo '    </select>
-                    <button type="submit" class="btn btn-sm btn-success text-nowrap">➕ ' . get_string('btn_assign', 'local_dapodik') . '</button>
-                </form>
-            </td>';
-            echo '</tr>';
+        $assigned_teachers = [];
+        foreach ($assigned_teachers_raw as $t) {
+            $unassign_url = new moodle_url('/local/dapodik/index.php', [
+                'tab'       => 'mapping',
+                'action'    => 'unassign',
+                'courseid'  => $course->id,
+                'teacherid' => $t->id,
+                'sesskey'   => sesskey(),
+            ]);
+            $assigned_teachers[] = [
+                'fullname'     => s($t->firstname . ' ' . $t->lastname),
+                'username'     => s($t->username),
+                'unassign_url' => $unassign_url->out(),
+            ];
         }
 
-        echo '</tbody></table></div>';
+        $formatted_courses[] = [
+            'id'                => $course->id,
+            'fullname'          => s($course->fullname),
+            'shortname'         => s($course->shortname),
+            'guru_dapodik'      => s($item['guru_dapodik']),
+            'has_teachers'      => !empty($assigned_teachers),
+            'assigned_teachers' => $assigned_teachers,
+        ];
     }
+
+    $templatedata = [
+        'is_sync'                         => false,
+        'is_mapping'                      => true,
+        'sesskey'                         => sesskey(),
+        'str_tab_sync'                    => get_string('tab_sync', 'local_dapodik'),
+        'str_tab_mapping'                 => get_string('tab_mapping', 'local_dapodik'),
+        'str_mapping_heading'             => get_string('mapping_heading', 'local_dapodik'),
+        'str_mapping_desc'                => get_string('mapping_desc', 'local_dapodik'),
+        'total_courses_label'             => get_string('badge_courses_count', 'local_dapodik', count($dapodik_courses)),
+        'has_courses'                     => !empty($formatted_courses),
+        'courses'                         => $formatted_courses,
+        'available_teachers'              => $available_teachers,
+        'str_th_course'                   => get_string('th_course', 'local_dapodik'),
+        'str_th_guru_dapodik'             => get_string('th_guru_dapodik', 'local_dapodik'),
+        'str_th_guru_moodle'              => get_string('th_guru_moodle', 'local_dapodik'),
+        'str_th_action'                   => get_string('th_action', 'local_dapodik'),
+        'str_no_teacher_assigned'         => get_string('no_teacher_assigned', 'local_dapodik'),
+        'str_btn_unassign_title'          => get_string('btn_unassign_title', 'local_dapodik'),
+        'str_select_teacher_placeholder'  => get_string('select_teacher_placeholder', 'local_dapodik'),
+        'str_btn_assign'                  => get_string('btn_assign', 'local_dapodik'),
+        'str_no_courses_yet'              => get_string('no_courses_yet', 'local_dapodik'),
+    ];
+
+    echo $OUTPUT->render_from_template('local_dapodik/control_center', $templatedata);
 }
 
 echo $OUTPUT->footer();

@@ -1,9 +1,26 @@
 <?php
-// Core Synchronization Manager for local_dapodik.
+// This file is part of Moodle - http://moodle.org/
 //
-// @package    local_dapodik
-// @copyright  2026 Ryan Ardian <inisaya@ardianryan.com>, SMA Negeri 1 Gedeg (@smansagewithai)
-// @license    MIT-NC
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+/**
+ * Core Synchronization Manager for local_dapodik.
+ *
+ * @package    local_dapodik
+ * @copyright  2026 Ryan Ardian <inisaya@ardianryan.com>, SMA Negeri 1 Gedeg
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
 
 namespace local_dapodik;
 
@@ -16,16 +33,14 @@ require_once($CFG->dirroot . '/enrol/locallib.php');
 
 /**
  * Sync Manager orchestrating data synchronization between Dapodik and Moodle.
- * Supports granular/modular sync and manual teacher mapping.
+ * Supports modular sync and manual teacher mapping.
  */
 class sync_manager {
     protected dapodik_client $client;
-    protected string $defaultpassword;
     protected string $emaildomain;
 
     public function __construct(?dapodik_client $client = null) {
         $this->client = $client ?? new dapodik_client();
-        $this->defaultpassword = get_config('local_dapodik', 'default_password') ?: 'Dapodik@2026!';
         $this->emaildomain = get_config('local_dapodik', 'email_domain') ?: 'sekolah.sch.id';
     }
 
@@ -53,29 +68,25 @@ class sync_manager {
         $log = $logger ?? function($msg) { mtrace($msg); };
         $log("Starting Dapodik Kemendikdasmen modular synchronization...");
 
-        // 1. Sync Students.
         if (!empty($options['students'])) {
             $log("Syncing students (Peserta Didik)...");
             $stats['students'] = $this->sync_students($log);
         }
 
-        // 2. Sync Teachers / GTK.
         if (!empty($options['teachers'])) {
             $log("Syncing teachers and staff (GTK)...");
             $stats['teachers'] = $this->sync_teachers($log);
         }
 
-        // 3. Sync Cohorts (Rombel).
         if (!empty($options['cohorts'])) {
             $log("Syncing study groups (Cohorts)...");
             $stats['cohorts'] = $this->sync_cohorts($log);
         }
 
-        // 4. Sync Courses & Enrolments.
         if (!empty($options['courses'])) {
-            $autoTeacher = !empty($options['auto_teacher']);
-            $log("Syncing courses and subjects (" . ($autoTeacher ? "Auto-assigning teachers enabled" : "Manual teacher assignment mode") . ")...");
-            $stats['courses'] = $this->sync_courses($autoTeacher, $log);
+            $auto_teacher = !empty($options['auto_teacher']);
+            $log("Syncing courses and subjects (" . ($auto_teacher ? "Auto-assigning teachers enabled" : "Manual teacher assignment mode") . ")...");
+            $stats['courses'] = $this->sync_courses($auto_teacher, $log);
         }
 
         $log("Modular synchronization finished. Summary: " . json_encode($stats));
@@ -91,13 +102,14 @@ class sync_manager {
             'teachers'     => (bool) get_config('local_dapodik', 'sync_teachers'),
             'cohorts'      => (bool) get_config('local_dapodik', 'sync_cohorts'),
             'courses'      => (bool) get_config('local_dapodik', 'sync_courses'),
-            'auto_teacher' => false, // Default false: admin assigns teachers manually.
+            'auto_teacher' => false,
         ];
         return $this->sync_modular($options, $logger);
     }
 
     /**
      * Synchronize students into Moodle users (username = NISN).
+     * Generates a unique secure initial password and forces password change on first login.
      */
     public function sync_students(?callable $log = null): int {
         global $DB, $CFG;
@@ -131,12 +143,13 @@ class sync_manager {
                 $existing = $DB->get_record('user', ['username' => $username, 'mnethostid' => $CFG->mnet_localhost_id]);
 
                 if (!$existing) {
+                    $random_password = bin2hex(random_bytes(10)) . '!Aa1';
                     $user = new \stdClass();
                     $user->auth = 'manual';
                     $user->confirmed = 1;
                     $user->mnethostid = $CFG->mnet_localhost_id;
                     $user->username = $username;
-                    $user->password = hash_internal_user_password($this->defaultpassword);
+                    $user->password = hash_internal_user_password($random_password);
                     $user->firstname = $firstname;
                     $user->lastname = $lastname;
                     $user->email = $email;
@@ -147,7 +160,8 @@ class sync_manager {
                     $user->timecreated = time();
                     $user->timemodified = time();
 
-                    user_create_user($user, false, false);
+                    $user_id = user_create_user($user, false, false);
+                    set_user_preference('auth_forcepasswordchange', 1, $user_id);
                     $count++;
                 } else {
                     $existing->firstname = $firstname;
@@ -170,6 +184,7 @@ class sync_manager {
 
     /**
      * Synchronize teachers (GTK) into Moodle users.
+     * Generates a unique secure initial password and forces password change on first login.
      */
     public function sync_teachers(?callable $log = null): int {
         global $DB, $CFG;
@@ -206,12 +221,13 @@ class sync_manager {
                 $existing = $DB->get_record('user', ['username' => $username, 'mnethostid' => $CFG->mnet_localhost_id]);
 
                 if (!$existing) {
+                    $random_password = bin2hex(random_bytes(10)) . '!Aa1';
                     $user = new \stdClass();
                     $user->auth = 'manual';
                     $user->confirmed = 1;
                     $user->mnethostid = $CFG->mnet_localhost_id;
                     $user->username = $username;
-                    $user->password = hash_internal_user_password($this->defaultpassword);
+                    $user->password = hash_internal_user_password($random_password);
                     $user->firstname = $firstname;
                     $user->lastname = $lastname;
                     $user->email = $email;
@@ -221,7 +237,8 @@ class sync_manager {
                     $user->timecreated = time();
                     $user->timemodified = time();
 
-                    user_create_user($user, false, false);
+                    $user_id = user_create_user($user, false, false);
+                    set_user_preference('auth_forcepasswordchange', 1, $user_id);
                     $count++;
                 }
             }
@@ -267,7 +284,6 @@ class sync_manager {
                 $cohortid = $cohort->id;
             }
 
-            // Sync anggota rombel to cohort.
             if (!empty($rombel['anggota_rombel']) && is_array($rombel['anggota_rombel'])) {
                 foreach ($rombel['anggota_rombel'] as $anggota) {
                     $nisn = strtolower(trim($anggota['nisn'] ?? ''));
@@ -287,18 +303,16 @@ class sync_manager {
 
     /**
      * Synchronize courses from Dapodik pembelajaran.
-     * Allows separating course creation from teacher enrolment.
      *
-     * @param bool $autoAssignTeacher Whether to automatically enrol the teacher defined in Dapodik.
+     * @param bool $auto_assign_teacher Whether to automatically enrol the teacher defined in Dapodik.
      * @param callable|null $log
      * @return int
      */
-    public function sync_courses(bool $autoAssignTeacher = false, ?callable $log = null): int {
+    public function sync_courses(bool $auto_assign_teacher = false, ?callable $log = null): int {
         global $DB;
         $count = 0;
         $rombels = $this->client->get_rombongan_belajar();
 
-        // Ensure category exists.
         $category = $DB->get_record('course_categories', ['name' => 'Dapodik Courses']);
         if (!$category) {
             $cat = new \stdClass();
@@ -319,8 +333,8 @@ class sync_manager {
             foreach ($rombel['pembelajaran'] as $pemb) {
                 $mapel = trim($pemb['nama_mata_pelajaran'] ?? '');
                 $pembid = $pemb['pembelajaran_id'] ?? '';
-                $namaGuru = trim($pemb['nama_guru'] ?? $pemb['nama_ptk'] ?? '');
-                $ptkId = trim($pemb['ptk_id'] ?? '');
+                $nama_guru = trim($pemb['nama_guru'] ?? $pemb['nama_ptk'] ?? '');
+                $ptk_id = trim($pemb['ptk_id'] ?? '');
 
                 if (empty($mapel) || empty($pembid)) continue;
 
@@ -334,7 +348,7 @@ class sync_manager {
                     $course->fullname = $mapel . ' (' . $rombelname . ')';
                     $course->shortname = $shortname;
                     $course->idnumber = $idnumber;
-                    $course->summary = 'Mata pelajaran Dapodik: ' . $mapel . ' | Kelas: ' . $rombelname . ($namaGuru ? ' | Guru Dapodik: ' . $namaGuru : '');
+                    $course->summary = 'Mata pelajaran Dapodik: ' . $mapel . ' | Kelas: ' . $rombelname . ($nama_guru ? ' | Guru Dapodik: ' . $nama_guru : '');
                     $course->format = 'topics';
                     $course->numsections = 4;
                     $course->startdate = time();
@@ -347,17 +361,15 @@ class sync_manager {
                     $courseid = $existing->id;
                 }
 
-                // Auto-assign cohort enrolment for students of this rombel.
                 $cohort = $DB->get_record('cohort', ['idnumber' => 'ROMBEL_' . $rombelid]);
                 if ($cohort) {
                     $this->enrol_cohort_to_course($courseid, $cohort->id);
                 }
 
-                // If auto-assign teacher is requested and teacher is present in Dapodik.
-                if ($autoAssignTeacher && !empty($ptkId)) {
-                    $teacherUser = $DB->get_record('user', ['idnumber' => $ptkId, 'deleted' => 0]);
-                    if ($teacherUser) {
-                        $this->assign_teacher_to_course($courseid, $teacherUser->id);
+                if ($auto_assign_teacher && !empty($ptk_id)) {
+                    $teacher_user = $DB->get_record('user', ['idnumber' => $ptk_id, 'deleted' => 0]);
+                    if ($teacher_user) {
+                        $this->assign_teacher_to_course($courseid, $teacher_user->id);
                     }
                 }
             }
@@ -447,26 +459,25 @@ class sync_manager {
             $teacherroles = $DB->get_records_list('role', 'shortname', ['editingteacher', 'teacher']);
             $roleids = array_keys($teacherroles);
 
-            $assignedTeachers = [];
+            $assigned_teachers = [];
             if (!empty($roleids)) {
                 list($insql, $inparams) = $DB->get_in_or_equal($roleids);
-                $sqlTeachers = "SELECT u.id, u.username, u.firstname, u.lastname, u.email
-                                  FROM {role_assignments} ra
-                                  JOIN {user} u ON u.id = ra.userid
-                                 WHERE ra.contextid = ? AND ra.roleid $insql AND u.deleted = 0";
-                $assignedTeachers = $DB->get_records_sql($sqlTeachers, array_merge([$context->id], $inparams));
+                $sql_teachers = "SELECT u.id, u.username, u.firstname, u.lastname, u.email
+                                   FROM {role_assignments} ra
+                                   JOIN {user} u ON u.id = ra.userid
+                                  WHERE ra.contextid = ? AND ra.roleid $insql AND u.deleted = 0";
+                $assigned_teachers = $DB->get_records_sql($sql_teachers, array_merge([$context->id], $inparams));
             }
 
-            // Extract Guru Dapodik from summary if available.
-            $guruDapodik = '-';
+            $guru_dapodik = '-';
             if (preg_match('/Guru Dapodik:\s*(.+)$/i', $c->summary, $m)) {
-                $guruDapodik = trim($m[1]);
+                $guru_dapodik = trim($m[1]);
             }
 
             $result[] = [
                 'course'            => $c,
-                'guru_dapodik'      => $guruDapodik,
-                'assigned_teachers' => array_values($assignedTeachers),
+                'guru_dapodik'      => $guru_dapodik,
+                'assigned_teachers' => array_values($assigned_teachers),
             ];
         }
 
@@ -478,7 +489,6 @@ class sync_manager {
      */
     public function get_available_teachers(): array {
         global $DB;
-        // Search in users with department 'Guru / GTK' or any active confirmed users.
         $sql = "SELECT u.id, u.username, u.firstname, u.lastname, u.email, u.department
                   FROM {user} u
                  WHERE u.deleted = 0 AND u.suspended = 0 AND u.id > 2
